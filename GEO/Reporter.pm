@@ -14,16 +14,22 @@ BEGIN {
 use ModENCODE::Config;
 
 sub chado2series {
-    my ($self, $experiment, $seriesFH) = @_;
+    my ($self, $experiment, $experiment_id, $seriesFH) = @_;
     my $uniquename = $experiment->get_uniquename();
     print $seriesFH "^Series = ", $uniquename, "\n";
 
-    foreach my $property (@{$experiment->get_properties()}) {
-	my ($name, $value, $rank, $type) = ($property->get_name(), 
-					    $property->get_value(), 
-					    $property->get_rank(), 
-					    $property->get_type());
-	print $seriesFH "!Series_title = modENCODE ", $value, "\n" if $name =~ /Investigation\s*Title/i;
+    #API changed! foreach my $property (@{$experiment->get_properties()}) {
+    foreach my $property ($experiment->get_properties()) {
+	#API changed!
+	my ($name, $value, $rank, $type) = ($property->get_object()->get_name(), 
+					    $property->get_object()->get_value(), 
+					    $property->get_object()->get_rank(), 
+					    $property->get_object()->get_type());	
+#	my ($name, $value, $rank, $type) = ($property->get_name(), 
+#					    $property->get_value(), 
+#					    $property->get_rank(), 
+#					    $property->get_type());
+	print $seriesFH "!Series_title = modENCODE $experiment_id", substr($value, 0, 110-length($experiment_id)), "\n" if $name =~ /Investigation\s*Title/i;
 	print $seriesFH "!Series_summary = Project Goal:", $value, "\n" if $name =~ /Experiment\s*Description/i;
 	print $seriesFH "!Series_pubmed_id = ", $value, "\n" if $name =~ /Pubmed_id/i;
     }
@@ -87,13 +93,22 @@ sub write_contributors {
 		     'phone' => '510-486-6217',
 		     'institute' => 'Life Sciences Division, Lawrence Berkeley National Laboratory',
 		     'address' => '1 Cyclotron Rd. MS 64-121, Berkeley, CA 94720',
+		     'city' => 'Berkeley',
+		     'state' => 'Califonia',
+		     'country' => 'USA',
+		     'zip code' => '94720',
 	});
 
-    foreach my $property (@{$experiment->get_properties()}) {
-	my ($name, $value, $rank, $type) = ($property->get_name(), 
-					    $property->get_value(), 
-					    $property->get_rank(), 
-					    $property->get_type());
+    #API changed! foreach my $property (@{$experiment->get_properties()}) {
+    foreach my $property ($experiment->get_properties()) {
+	#API changed! my ($name, $value, $rank, $type) = ($property->get_name(), 
+	#                				  $property->get_value(), 
+	#			                	  $property->get_rank(), 
+	#				                  $property->get_type());
+	my ($name, $value, $rank, $type) = ($property->get_object()->get_name(), 
+					    $property->get_object()->get_value(), 
+					    $property->get_object()->get_rank(), 
+					    $property->get_object()->get_type());	
 
 	$person{$rank}{'affiliation'} = $value if $name =~ /Person\s*Affiliation/i;
 	$person{$rank}{'address'} = $value if $name =~ /Person\s*Address/i;
@@ -111,9 +126,9 @@ sub write_contributors {
 	my $str = $person{$k}{'first'} . ",";
 	if ($person{$k}{'mid'}) {
 	    $str .= $person{$k}{'mid'}[0] . ",";
-	} else {
-	    $str .= " ,";
-	}
+	} #else {
+	  #  $str .= " ,";
+	#}
 	$str .= $person{$k}{'last'};
 	print $seriesFH "!Series_contributor = ", $str, "\n";
     }
@@ -146,19 +161,27 @@ sub write_series_variable {
 sub get_factor {
     my ($self, $experiment) = @_;
     my %factor;
-    foreach my $property (@{$experiment->get_properties()}) {
-	my ($name, $value, $rank, $type) = ($property->get_name(), 
-					    $property->get_value(), 
-					    $property->get_rank(), 
-					    $property->get_type());
+    #API changed! foreach my $property (@{$experiment->get_properties()}) {
+    foreach my $property ($experiment->get_properties()) {
+	#API changed! my ($name, $value, $rank, $type) = ($property->get_name(), 
+	#                				  $property->get_value(), 
+	#			                	  $property->get_rank(), 
+	#				                  $property->get_type());
+	my ($name, $value, $rank, $type) = ($property->get_object()->get_name(), 
+					    $property->get_object()->get_value(), 
+					    $property->get_object()->get_rank(), 
+					    $property->get_object()->get_type());
+
 	if ($name =~ /Experimental\s*Factor\s*Name/i) {
 	    $factor{$rank} = [$value];
 	}
 	if ($name =~ /Experimental\s*Factor\s*Type/i) {
 	    push @{$factor{$rank}}, $value;
-	    if (defined($property->get_termsource())) {
-		push @{$factor{$rank}} , ($type->get_cv()->get_name(), 
-					  $property->get_termsource()->get_accession());
+	    #API changed! if (defined($property->get_termsource())) {
+	    if (defined($property->get_object()->get_termsource())) {
+		#API changed!
+		push @{$factor{$rank}} , ($type->get_object()->get_cv()->get_object()->get_name(), 
+					  $property->get_object()->get_termsource()->get_object()->get_accession());
 	    }
 	}	
     }
@@ -167,11 +190,17 @@ sub get_factor {
 
 sub get_lab {
     my ($self, $experiment) = @_;
-    foreach my $property (@{$experiment->get_properties()}) {
-	my ($name, $value, $rank, $type) = ($property->get_name(), 
-					    $property->get_value(), 
-					    $property->get_rank(), 
-					    $property->get_type());
+    #API changed! foreach my $property (@{$experiment->get_properties()}) {
+    foreach my $property ($experiment->get_properties()) {
+	#API changed! my ($name, $value, $rank, $type) = ($property->get_name(), 
+	#                				  $property->get_value(), 
+	#			                	  $property->get_rank(), 
+	#				                  $property->get_type());
+	my ($name, $value, $rank, $type) = ($property->get_object()->get_name(), 
+					    $property->get_object()->get_value(), 
+					    $property->get_object()->get_rank(), 
+					    $property->get_object()->get_type());
+
 	return $value if ($name =~ /^\s*lab\s*$/i); 
     }    
 }
@@ -190,16 +219,24 @@ sub write_series_overall_design {
 sub get_design {
     my ($self, $experiment) = @_;
     my (%design, %quality_control, %replicate);
-    foreach my $property (@{$experiment->get_properties()}) {
-	my ($name, $value, $rank, $type) = ($property->get_name(), 
-					    $property->get_value(), 
-					    $property->get_rank(), 
-					    $property->get_type());
+    #API changed! foreach my $property (@{$experiment->get_properties()}) {
+    foreach my $property ($experiment->get_properties()) {
+	#API changed! my ($name, $value, $rank, $type) = ($property->get_name(), 
+	#                				  $property->get_value(), 
+	#			                	  $property->get_rank(), 
+	#				                  $property->get_type());
+	my ($name, $value, $rank, $type) = ($property->get_object()->get_name(), 
+					    $property->get_object()->get_value(), 
+					    $property->get_object()->get_rank(), 
+					    $property->get_object()->get_type());
+
 	if ($name =~ /Experimental\s*Design/i) {
 	    $design{$rank} = [$value];
-	    if (defined($property->get_termsource())) {
-		push @{$design{$rank}}, ($type->get_cv()->get_name(), 
-					 $property->get_termsource()->get_accession());
+	    #API changed! if (defined($property->get_termsource())) {
+	    if (defined($property->get_object()->get_termsource())) {
+		#API changed!
+		push @{$design{$rank}}, ($type->get_object->get_cv()->get_object->get_name(), 
+					 $property->get_object()->get_termsource()->get_object()->get_accession());
 	    }
 	}
     }
@@ -214,10 +251,12 @@ sub write_series_type {
     my $written = 0;
     print $seriesFH "!Series_type = ", "ChIP-chip\n" and $written = 1 if $ap_slots->{'immunoprecipitation'};
     print $seriesFH "!Series_type = ", "FAIRE-chip\n" and $written = 1 if $ap_slots->{'faire'};
-    for my $d (values %$design) {
-	if ($d =~ /transcript/i) {
-	    print $seriesFH "!Series_type = ", "transcription tiling array analysis\n"; 
-	    $written = 1 and last;
+    for my $dd (values %$design) {
+	for my $d (@$dd) {
+	    if ($d =~ /transcript/i) {
+		print $seriesFH "!Series_type = ", "transcription tiling array analysis\n"; 
+		$written = 1 and last;
+	    }
 	}
     }
     print $seriesFH "!Series_type = ", "tiling array analysis\n" unless $written;
@@ -225,10 +264,8 @@ sub write_series_type {
 
 sub chado2sample {
     my ($self, $reader, $experiment, $seriesFH, $sampleFH, $report_dir) = @_;
-
     #get various biological protocol slots 
     my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
-
     #get the more-than-applied-protocols matrix    
     my $denorm_slots = $reader->get_denormalized_protocol_slots();
 #    my $denorm_slots = $reader->get_full_denormalized_protocol_slots();
@@ -236,10 +273,9 @@ sub chado2sample {
     #sort out how many samples in this experiment. for GEO, one sample is defined by one array instance. 
     #this is done by grouping hybridization protocols first by extraction and then by array.
     my ($nr_grp, $all_grp) = $self->group_applied_protocols($denorm_slots->[$ap_slots->{'extraction'}], 1);
-
 #    my ($nr_grp, $all_grp) = $self->group_applied_protocols_fast($denorm_slots->[$ap_slots->{'extraction'}], 1);
     my $all_grp_by_array = $self->group_applied_protocols_by_data($denorm_slots->[$ap_slots->{'hybridization'}],
-								  'input', 'heading', 'ArrayDesign\s*REF');
+								  'input', 'name', '\s*array\s*');
 #    my $all_grp_by_array = $self->group_applied_protocols_by_data_fast($denorm_slots->[$ap_slots->{'hybridization'}],
 #								       'input', 'heading', 'ArrayDesign\s*REF');
 
@@ -304,8 +340,9 @@ sub write_series_sample {#improvement: generate more meaning sample title using 
     my ($self, $denorm_slots, $extraction, $array, $row, $ap_slots, $seriesFH, $sampleFH) = @_;
     #use hybridization name if possible
     my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
-    my @hyb_names = map {$_->get_value()} @{_get_datum_by_info($hyb_ap, 'input', 'heading', 'Hybridization\s*Name')};
-    if (scalar(@hyb_names)) {
+    my $hyb_data = _get_datum_by_info($hyb_ap, 'input', 'heading', 'Hybridization\s*Name');    
+    if (scalar(@$hyb_data)) {
+	my @hyb_names = map {$_->get_object->get_value()} @$hyb_data;
 	print $seriesFH "!Series_sample_id = GSM for ", $hyb_names[0], "\n";
 	print $sampleFH "^Sample = GSM for ", $hyb_names[0], "\n";
 	print $sampleFH "!Sample_title = ", $hyb_names[0], "\n";
@@ -321,14 +358,21 @@ sub write_sample_source {
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;    
     #use Sample name if exists, otherwise use Source name if exists, if none of them, auto-generate.
     my $extract_ap = $denorm_slots->[$ap_slots->{'extraction'}]->[$row];
-    my @sample_names = map {$_->get_value()} @{_get_datum_by_info($extract_ap, 'input', 'heading', 'Sample\s*Name')};
-    if (scalar(@sample_names)) {
-	print $sampleFH "!Sample_source_name_ch[$channel] = ", $sample_names[0], "channel_$channel\n";
-    } else {#use the first protocol to generate source name
+    my $sample_data = _get_datum_by_info($extract_ap, 'input', 'heading', 'Sample\s*Name');
+    if (scalar(@$sample_data) == 0) {
+	$sample_data = _get_datum_by_info($extract_ap, 'output', 'heading', 'Result');	
+    }
+    if (scalar(@$sample_data)) {
+	my @sample_names = map {$_->get_object->get_value()} @$sample_data;
+	print $sampleFH "!Sample_source_name_ch[$channel] = ", $sample_names[0], " channel_$channel\n";
+    }
+    else {
+        #use the first protocol to generate source name
 	my $source_ap = $denorm_slots->[0]->[$row];
-	my @source_names = map {$_->get_value()} _get_datum_by_info($source_ap, 'input', 'heading', 'Source\s*Name');
-	if (scalar(@source_names)) {
-	    print $sampleFH "!Sample_source_name_ch[$channel] = ", $source_names[0], "channel_$channel\n";
+	my $source_data = _get_datum_by_info($source_ap, 'input', 'heading', 'Source\s*Name');	
+	if (scalar(@$source_data)) {
+	    my @source_names = map {$_->get_object->get_value()} @$source_data;
+	    print $sampleFH "!Sample_source_name_ch[$channel] = ", $source_names[0], " channel_$channel\n";
 	} else {#autogenerate
 	    print $sampleFH "!Sample_source_name_ch[$channel] = ", "source at row $row channel_$channel\n";
 	}
@@ -343,14 +387,15 @@ sub write_sample_description {
     my $antibodies = _get_datum_by_info($ip_ap, 'input', 'name', 'antibody');
     if (scalar(@$antibodies)) {
 	for my $antibody (@$antibodies) {
-	    if ($antibody->get_value()) {
+	    if ($antibody->get_object->get_value()) {
 		my $str = "!Sample_description = channel $channel is ChIP; ";
-		for my $attr (@{$antibody->get_attributes()}) {
+		for my $attr_cache ($antibody->get_object->get_attributes()) {
+		    my $attr = $attr_cache->get_object;
 		    my ($name, $heading, $value) = ($attr->get_name(), $attr->get_heading(), $attr->get_value());
 		    $str .= "$heading";
 		    $str .= "[$name] " if $name;
 		    if ($attr->get_termsource()) {
-			$str .= $attr->get_termsource()->get_db()->get_name() . "::";
+			$str .= $attr->get_termsource()->get_object->get_db()->get_object->get_name() . "::";
 			#$str .= $attr->get_termsource()->get_db()->get_name() . "|" . $attr->get_termsource()->get_accession();
 		    }
 		    $str .= ": $value; ";		
@@ -374,17 +419,18 @@ sub write_characteristics {
 
 sub ap_write_characteristics {
     my ($self, $ap, $channel, $sampleFH) = @_;
-    for my $datum (@{$ap->get_input_data()}) {
+    for my $datum ($ap->get_input_data()) {
 	my $str = "!Sample_characteristics_ch[$channel] = ";
-	for my $attr (@{$datum->get_attributes()}) {
+	for my $attr_cache ($datum->get_object->get_attributes()) {
+	    my $attr = $attr_cache->get_object;
 	    my ($name, $heading, $value) = ($attr->get_name(), $attr->get_heading(), $attr->get_value());
 	    $str .= "$heading";
-	    $str .= "[$name] " if $name;
+	    $str .= "[$name]" if $name;
 	    if ($attr->get_termsource()) {
-		$str .= $attr->get_termsource()->get_db()->get_name() . "::";
+		$str .= $attr->get_termsource()->get_object->get_db()->get_object->get_name() . "::";
 		#$str .= $attr->get_termsource()->get_db()->get_name() . "|" . $attr->get_termsource()->get_accession();
 	    }
-	    $str .= "$value; ";		
+	    $str .= " $value; ";		
 	}
 	print $sampleFH $str, "\n";
     }
@@ -406,8 +452,8 @@ sub write_sample_extraction {
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
     my $extract_ap = $denorm_slots->[$ap_slots->{'extraction'}]->[$row];
     my $molecule;
-    for my $datum (@{$extract_ap->get_output_data()}) {
-	my $type = $datum->get_type()->get_name();
+    for my $datum ($extract_ap->get_output_data()) {
+	my $type = $datum->get_object->get_type()->get_object->get_name();
 	$molecule = $type and last if ($type =~ /dna/i || $type =~ /rna/i);
     }
     croak("is the type of molecule extracted dna, total_rna, nucleic rna, ...?") unless $molecule;
@@ -428,8 +474,8 @@ sub write_sample_label {
     my $label_ap = $denorm_slots->[$ap_slots->{'labeling'}]->[$row];
 
     my $label;
-    for my $datum (@{$label_ap->get_input_data()}) {
-	$label = $datum->get_value() if $datum->get_name() =~ /label/i;
+    for my $datum ($label_ap->get_input_data()) {
+	$label = $datum->get_object->get_value() if $datum->get_object->get_name() =~ /label/i;
     }
     print $sampleFH "!Sample_label_ch[$channel] = ", $label, "\n";    
 
@@ -459,21 +505,32 @@ sub write_sample_scan {
 sub write_sample_normalization {
     #data-processing
     my ($self, $denorm_slots, $row, $ap_slots, $sampleFH) = @_;
-    my $normalize_ap = $denorm_slots->[$ap_slots->{'normalization'}]->[$row];
-    my $protocol_text = $self->get_protocol_text($normalize_ap);
-    $protocol_text =~ s/\n//g; #one line
-    print $sampleFH "!Sample_data_processing = ", $protocol_text, " _end of protocol text_ ";
-    for my $datum (@{$normalize_ap->get_input_data()}) {
-	print $sampleFH "parameter: ", $datum->get_name(), " is ", $datum->get_value() if $datum->get_heading() =~ /Parameter/i;
+    print $sampleFH "!Sample_data_processing = "; 
+    for (my $i=$ap_slots->{'scanning'}+1; $i<=$ap_slots->{'normalization'}; $i++) {
+	my $ap = $denorm_slots->[$i]->[$row];
+	my $protocol_text = $self->get_protocol_text($ap);
+	$protocol_text =~ s/\n//g; #one line
+	print $sampleFH $protocol_text, " _end of protocol text_ ";
+	for my $datum ($ap->get_input_data()) {
+	    print $sampleFH "parameter: ", $datum->get_object->get_name(), " is ", $datum->get_object->get_value(), "   " if $datum->get_object->get_heading() =~ /Parameter/i;
+	}	
     }
-    print $sampleFH "\n";       
+    print $sampleFH "\n";
+#    my $normalize_ap = $denorm_slots->[$ap_slots->{'normalization'}]->[$row];
+#    my $protocol_text = $self->get_protocol_text($normalize_ap);
+#    $protocol_text =~ s/\n//g; #one line
+#    print $sampleFH "!Sample_data_processing = ", $protocol_text, " _end of protocol text_ ";
+#    for my $datum ($normalize_ap->get_input_data()) {
+#	print $sampleFH "parameter: ", $datum->get_object->get_name(), " is ", $datum->get_object->get_value() if $datum->get_object->get_heading() =~ /Parameter/i;
+#    }
+#    print $sampleFH "\n";       
 }
 
 sub get_protocol_text {
     my ($self, $ap) = @_;
     my $protocol = $ap->get_protocol();
     #use short description
-    if (my $txt = $protocol->get_description()) {
+    if (my $txt = $protocol->get_object->get_description()) {
 	return $txt;
     } else {
 	my @url = map {$_->get_value()} @{_get_attr_by_info($protocol, 'heading', 'Protocol\s*URL')};
@@ -531,9 +588,13 @@ sub write_platform {
     my ($self, $denorm_slots, $row, $ap_slots, $sampleFH) = @_;
     my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
     my $array = _get_datum_by_info($hyb_ap, 'input', 'heading', 'ArrayDesign\s*REF');
+    if (scalar(@$array) == 0) {
+	$array = _get_datum_by_info($hyb_ap, 'input', 'name', 'array');
+    }
     my $gpl;
     if (scalar(@$array)) {
 	my $attr = _get_attr_by_info($array->[0], 'heading', '\s*adf\s*');
+	
 	$gpl = $1 if $attr->[0]->get_value() =~ /(GPL\d*)\s*$/;
     }
     print $sampleFH "!Sample_platform_id = ", $gpl, "\n";
@@ -543,13 +604,18 @@ sub write_normalized_data {
     #normalized data is in wiggle_data
     #supplement a file, don't need liftover/pulldown, thank god!
     my ($self, $denorm_slots, $row, $ap_slots, $sampleFH, $report_dir) = @_;
+#    print "row:", $row;
     my $normalize_ap = $denorm_slots->[$ap_slots->{'normalization'}]->[$row];
     my @normalize_datafiles;
-    for my $datum (@{$normalize_ap->get_output_data()}) {
-	for my $wiggle_data (@{$datum->get_wiggle_datas()}) {
+#    print " output data: ", scalar($normalize_ap->get_output_data());
+    for my $datum ($normalize_ap->get_output_data()) {
+#	print " wiggle data: ", scalar($datum->get_object->get_wiggle_datas()), "\n";
+	for my $wiggle_data_cache ($datum->get_object->get_wiggle_datas()) {
+	    my $wiggle_data = $wiggle_data_cache->get_object;
 	    my $datafile = $report_dir . $wiggle_data->get_name();
+	    my $dataFH;
 	    open $dataFH, ">", $datafile || die "can not open $datafile to write out data. $!\n";
-	    print $dataFH $wiggle_data->get_data();
+#	    print $dataFH $wiggle_data->get_data();
 	    close $dataFH;
 	    print $sampleFH "!Sample_supplementary_file = ", $datafile, "\n";
 	    push @normalize_datafiles, $datafile;
@@ -562,7 +628,8 @@ sub write_raw_data {
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
     my $ap = $denorm_slots->[$ap_slots->{'raw'}]->[$row];
     my @raw_datafiles;
-    for my $datum (@{$ap->get_output_data()}) {
+    for my $datum_cache ($ap->get_output_data()) {
+	my $datum = $datum_cache->get_object;
 	if (($datum->get_heading() =~ /Array\s*Data\s*File/i) || ($datum->get_heading() =~ /Result\s*File/i)) {
 	    print $sampleFH "!Sample_supplementary_file = ", $datum->get_value(), "\n";
 	    push @raw_datafiles, $datum->get_value();
@@ -589,14 +656,15 @@ sub group_applied_protocols_by_data_fast {
     #these applied protocols are HASH with keys 'applied_protocol', 'previous_applied_protocol_id'
     my @yap_slot = map {$_->{'applied_protocol'}} @$ap_slot;
     my $data = _get_data_by_info(\@yap_slot, $direction, $field, $fieldtext);
-    my @ids = map {$_->get_chadoxml_id()} @$data;
+    my @ids = map {$_->get_object->get_chadoxml_id()} @$data;
     return _group(\@ids, $rtn);
 }
 
 sub group_applied_protocols_by_data {
     my ($self, $ap_slot, $direction, $field, $fieldtext, $rtn) = @_;
-    my $data = _get_data_by_info($ap_slot, $direction, $field, $fieldtext);
-    return _group($data, $rtn);
+    my $data_cache = _get_data_by_info($ap_slot, $direction, $field, $fieldtext);
+    my @data = map {$_->get_object} @$data_cache;
+    return _group(\@data, $rtn);
 }
 
 sub _group {
@@ -685,6 +753,7 @@ sub get_slotnum_ip {
 	return $aps[-1] if scalar(@aps);
     }
     warn("warning! can not find IP protocol.");
+    return;
 }
 
 sub get_slotnum_faire {
@@ -695,8 +764,6 @@ sub get_slotnum_faire {
 	return $aps[-1] if scalar(@aps);
     }
 }
-
-
 
 sub get_slotnum_label {#this could go into a subclass of experiment.pm
     my ($self, $experiment) = @_;
@@ -741,7 +808,7 @@ sub get_slotnum_raw {#this could go into a subclass of experiment
 sub get_slotnum_normalize {#this could go into a subclass of experiment 
     my ($self, $experiment) = @_;
     #first search by output data type, such as modencode-helper:Signal_Graph_File [sig gr]
-    my @types = ('Signal_Graph_File', 'normalized\s*data', 'scaled\s*data');
+    my @types = ('Signal_Graph_File', 'normalized\s*data', 'scaled\s*data', 'signal\s*intensities');
     for my $type (@types) {
 	my @aps = $self->get_slotnum_by_datum_property($experiment, 'output', 0, 'type', undef, $type);
 	#even there are more than 1 normalization protocols, choose the first one since it is the nearest to hyb protocol
@@ -770,21 +837,23 @@ sub get_slotnum_by_protocol_property {
 	for my $ap (@{$experiment->get_applied_protocol_slots()->[$i]}) {
 	    last if $found;
 	    if ($isattr) {#protocol attribute
-		for my $attr (@{$ap->get_protocol()->get_attributes()}) {
+		#API changed twice! for my $attr (@{$ap->get_protocol()->get_attributes()}) {
+		for my $attr_cache ($ap->get_protocol()->get_object()->get_attributes()) {
+		    my $attr = $attr_cache->get_object;
 		    if (_get_attr_value($attr, $field, $fieldtext) =~ /$value/i) {
 			push @slots, $i;
 			$found = 1 and last;
 		    }
 		}
 	    } else {#protocol
-		if (_get_protocol_info($ap->get_protocol(), $field) =~ /$value/i) {
+		if (_get_protocol_info($ap->get_protocol()->get_object, $field) =~ /$value/i) {
 		    push @slots, $i;
 		    $found = 1 and last;
 		}
 	    }
 	}
 	$found = 0;
-    }    
+    }
     return @slots;
 }
 
@@ -797,9 +866,13 @@ sub get_slotnum_by_datum_property {#this could go into a subclass of experiment
 	for my $applied_protocol (@{$experiment->get_applied_protocol_slots()->[$i]}) {
 	    last if $found;
 	    if ($direction eq 'input') {
-		for my $input_datum (@{$applied_protocol->get_input_data()}) {
+		for my $input_datum_cache ($applied_protocol->get_input_data()) {
+		    #API changed!
+		    my $input_datum = $input_datum_cache->get_object();
 		    if ($isattr) {
-			for my $attr (@{$input_datum->get_attributes()}) {
+			#API changed! for my $attr (@{$input_datum->get_attributes()}) {
+			for my $attr_cache ($input_datum->get_attributes()) {
+			    my $attr = $attr_cache->get_object;
 			    if (_get_attr_value($attr, $field, $fieldtext) =~ /$value/i) {
 				push @slots, $i;
 				$found = 1 and last;
@@ -814,9 +887,12 @@ sub get_slotnum_by_datum_property {#this could go into a subclass of experiment
 		}
 	    }
 	    if ($direction eq 'output') {
-		for my $output_datum (@{$applied_protocol->get_output_data()}) {
+		for my $output_datum_cache ($applied_protocol->get_output_data()) {
+		    #API changed!
+		    my $output_datum = $output_datum_cache->get_object();
 		    if ($isattr) {
-			for my $attr (@{$output_datum->get_attributes()}) {
+			for my $attr_cache ($output_datum->get_attributes()) {
+			    my $attr = $attr_cache->get_object;
 			    if (_get_attr_value($attr, $field, $fieldtext) =~ /$value/i) {
 				push @slots, $i;
 				$found = 1 and last;
@@ -850,15 +926,19 @@ sub _get_datum_by_info {#this could go into a subclass of experiment
     my @data = ();
 
     if ($direction eq 'input') {
-	for my $datum (@{$ap->get_input_data()}) {
-	    if ($field eq 'name') {push @data, $datum if $datum->get_name() =~ /$fieldtext/i;}
-	    if ($field eq 'heading') {push @data, $datum if $datum->get_heading() =~ /$fieldtext/i;}	    
+	for my $datum_cache ($ap->get_input_data()) {
+	    #API changed!
+	    my $datum = $datum_cache->get_object();
+	    if ($field eq 'name') {push @data, $datum_cache if $datum->get_name() =~ /$fieldtext/i;}
+	    if ($field eq 'heading') {push @data, $datum_cache if $datum->get_heading() =~ /$fieldtext/i;}	    
 	}
     }
     if ($direction eq 'output') {
-	for my $datum (@{$ap->get_output_data()}) {
-	    if ($field eq 'name') {push @data, $datum if $datum->get_name() =~ /$fieldtext/i;}
-	    if ($field eq 'heading') {push @data, $datum if $datum->get_heading() =~ /$fieldtext/i;}
+	for my $datum_cache ($ap->get_output_data()) {
+	    #API changed!
+	    my $datum = $datum_cache->get_object();
+	    if ($field eq 'name') {push @data, $datum_cache if $datum->get_name() =~ /$fieldtext/i;}
+	    if ($field eq 'heading') {push @data, $datum_cache if $datum->get_heading() =~ /$fieldtext/i;}
 	}
     }
     return \@data;
@@ -868,7 +948,9 @@ sub _get_attr_by_info {
     my ($obj, $field, $fieldtext) = @_;
     my @attributes = ();
     my $func = "get_$field";
-    for my $attr (@{$obj->get_attributes()}) {
+    #API changed! for my $attr (@{$obj->get_attributes()}) {
+    for my $attr_cache ($obj->get_object()->get_attributes()) {
+	my $attr = $attr_cache->get_object;
 	push @attributes, $attr if $attr->$func() =~ /$fieldtext/i;
     }
     return \@attributes;
@@ -888,8 +970,8 @@ sub _get_datum_info {#this could go to data.pm
     my ($datum, $field) = @_;
     return $datum->get_name() if $field eq 'name';
     return $datum->get_heading() if $field eq 'heading';
-    return $datum->get_type()->get_name() if $field eq 'type';
-    return $datum->get_termsource()->get_db()->get_name() . ":" . $datum->get_termsource()->get_accession() if $field eq 'dbxref';
+    return $datum->get_type()->get_object->get_name() if $field eq 'type';
+    return $datum->get_termsource()->get_object->get_db()->get_object->get_name() . ":" . $datum->get_termsource()->get_object->get_accession() if $field eq 'dbxref';
 }
 
 sub _get_datum_value {#this could go to data.pm
@@ -900,7 +982,9 @@ sub _get_datum_value {#this could go to data.pm
 }
 
 sub _get_attr_info {
-    my ($attr, $field) = @_;
+    my ($attr_cache, $field) = @_;
+    #API changed!
+    my $attr = $attr_cache->get_object();
     return $attr->get_name() if $field eq 'name';
     return $attr->get_heading() if $field eq 'heading';
     return $attr->get_type()->get_name() if $field eq 'type';
