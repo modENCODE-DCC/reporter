@@ -41,7 +41,7 @@ sub chado2series {
     $self->write_contributors($experiment, $seriesFH);
 
     my $factor = $self->get_factor($experiment);
-    $self->write_series_variable($factor, $seriesFH);
+#    $self->write_series_variable($factor, $seriesFH);
 }
 
 sub write_contributors {
@@ -51,17 +51,27 @@ sub write_contributors {
     my ($self, $experiment, $seriesFH) = @_;
     my %person;
     my $project;
-    my %contact = ('waterston' => 'nicole',
-		   'lieb' => 'marc',
-		   'snyder' => 'marc',
-		   'henikoff' => 'marc',
-		   'piano' => 'nicole',
-		   'celniker' => 'nicole',
-		   'karpen' => 'marc',
-		   'white' => 'marc',
-		   'lai' => 'peter',
-		   'macalpine' => 'peter',
-    );
+#    my %contact = ('waterston' => 'nicole',
+#		   'lieb' => 'marc',
+#		   'snyder' => 'marc',
+#		   'henikoff' => 'marc',
+#		   'piano' => 'nicole',
+#		   'celniker' => 'nicole',
+#		   'karpen' => 'marc',
+#		   'white' => 'marc',
+#		   'lai' => 'peter',
+#		   'macalpine' => 'peter',
+#    );
+    my %contact = ('waterston' => 'dcc',
+	           'lieb' => 'dcc',
+	           'snyder' => 'dcc',
+                   'henikoff' => 'dcc',
+	           'piano' => 'dcc',
+	           'celniker' => 'dcc',
+                   'karpen' => 'dcc',
+                   'white' => 'dcc',
+                   'lai' => 'dcc',
+                   'macalpine' => 'dcc');
     my %contact_info = (
 	'marc' => {'first' => 'Marc',
 		   'middle' => 'D',
@@ -97,6 +107,17 @@ sub write_contributors {
 		     'state' => 'Califonia',
 		     'country' => 'USA',
 		     'zip code' => '94720',
+	},
+        'dcc' => {'first' => 'DCC',
+		  'last'  => 'modENCODE',
+		  'email' => 'help@modencode.org',
+		  'phone' => '416-673-8579',
+		  'institute' => 'Ontario Institute for Cancer Research',
+		  'address' => '101 College Street, Suite 800',
+		  'city' => 'Toronto', 
+		  'state' => 'Ontario', 
+		  'country' => 'Canada',
+		  'zip code' => 'M5G 0A3',                  
 	});
 
     #API changed! foreach my $property (@{$experiment->get_properties()}) {
@@ -134,9 +155,15 @@ sub write_contributors {
     }
 
     my $person = $contact{$project};
-    my $str = $contact_info{$person}{'first'} . ",";    
-    $str .= $contact_info{$person}{'middle'} if defined($contact_info{$person}{'middle'});
-    $str .= "," . $contact_info{$person}{'last'};    
+    my $str;
+    if ($person ne 'dcc') {
+	$str = $contact_info{$person}{'first'} . ",";    
+	$str .= $contact_info{$person}{'middle'} . "," if defined($contact_info{$person}{'middle'});
+	$str .= $contact_info{$person}{'last'};
+    } else {
+	$str .= $contact_info{$person}{'first'} . ",";
+	$str .= $contact_info{$person}{'last'}; 
+    }
     print $seriesFH "!Series_contact_name = ", $str, "\n";
     print $seriesFH "!Series_contact_email = ", $contact_info{$person}{'email'}, "\n";
     print $seriesFH "!Series_contact_phone = ", $contact_info{$person}{'phone'}, "\n";
@@ -364,7 +391,7 @@ sub write_sample_source {
     }
     if (scalar(@$sample_data)) {
 	my @sample_names = map {$_->get_object->get_value()} @$sample_data;
-	print $sampleFH "!Sample_source_name_ch[$channel] = ", $sample_names[0], " channel_$channel\n";
+	print $sampleFH "!Sample_source_name_ch$channel = ", $sample_names[0], " channel_$channel\n";
     }
     else {
         #use the first protocol to generate source name
@@ -372,13 +399,13 @@ sub write_sample_source {
 	my $source_data = _get_datum_by_info($source_ap, 'input', 'heading', 'Source\s*Name');	
 	if (scalar(@$source_data)) {
 	    my @source_names = map {$_->get_object->get_value()} @$source_data;
-	    print $sampleFH "!Sample_source_name_ch[$channel] = ", $source_names[0], " channel_$channel\n";
+	    print $sampleFH "!Sample_source_name_ch$channel = ", $source_names[0], " channel_$channel\n";
 	} else {#autogenerate
-	    print $sampleFH "!Sample_source_name_ch[$channel] = ", "source at row $row channel_$channel\n";
+	    print $sampleFH "!Sample_source_name_ch$channel = ", "source at row $row channel_$channel\n";
 	}
     }
     my @organism_name = map {$_->get_value()} @{_get_attr_by_info($extract_ap->get_protocol(), 'heading', 'species')};
-    print $sampleFH "!Sample_organism_ch[$channel] = $organism_name[0]\n",    
+    print $sampleFH "!Sample_organism_ch$channel = $organism_name[0]\n",    
 }
 
 sub write_sample_description {
@@ -420,19 +447,20 @@ sub write_characteristics {
 sub ap_write_characteristics {
     my ($self, $ap, $channel, $sampleFH) = @_;
     for my $datum ($ap->get_input_data()) {
-	my $str = "!Sample_characteristics_ch[$channel] = ";
 	for my $attr_cache ($datum->get_object->get_attributes()) {
+	    my $str .= "!Sample_characteristics_ch$channel = ";
 	    my $attr = $attr_cache->get_object;
 	    my ($name, $heading, $value) = ($attr->get_name(), $attr->get_heading(), $attr->get_value());
 	    $str .= "$heading";
 	    $str .= "[$name]" if $name;
+	    $str .= ": ";
 	    if ($attr->get_termsource()) {
 		$str .= $attr->get_termsource()->get_object->get_db()->get_object->get_name() . "::";
 		#$str .= $attr->get_termsource()->get_db()->get_name() . "|" . $attr->get_termsource()->get_accession();
 	    }
-	    $str .= " $value; ";		
+	    $str .= $value;
+	    print $sampleFH $str, "\n";
 	}
-	print $sampleFH $str, "\n";
     }
 }
 
@@ -443,7 +471,7 @@ sub write_sample_growth {
 	my $ap = $denorm_slots->[$i]->[$row];
 	my $protocol_text = $self->get_protocol_text($ap);
 	$protocol_text =~ s/\n//g; #one line
-	print $sampleFH "!Sample_growth_protocol_ch[$channel] = ", $protocol_text, "\n";
+	print $sampleFH "!Sample_growth_protocol_ch$channel = ", $protocol_text, "\n";
     }
 }
 
@@ -457,14 +485,14 @@ sub write_sample_extraction {
 	$molecule = $type and last if ($type =~ /dna/i || $type =~ /rna/i);
     }
     croak("is the type of molecule extracted dna, total_rna, nucleic rna, ...?") unless $molecule;
-    print $sampleFH "!Sample_molecule_ch[$channel] = ", $molecule, "\n";
-
+    print $sampleFH "!Sample_molecule_ch$channel = ", $molecule, "\n";
     
     for (my $i=$ap_slots->{'extraction'}; $i<$ap_slots->{'labeling'}; $i++) {
 	my $ap = $denorm_slots->[$i]->[$row];
 	my $protocol_text = $self->get_protocol_text($ap);
 	$protocol_text =~ s/\n//g; #one line
-	print $sampleFH "!Sample_extract_protocol_ch[$channel] = ", $protocol_text, "\n";
+	print $sampleFH "!Sample_extract_protocol_ch$channel = ", $protocol_text, "\n";
+	$self->ap_write_characteristics($ap, $channel, $sampleFH); 
     }
 }
 
@@ -477,11 +505,11 @@ sub write_sample_label {
     for my $datum ($label_ap->get_input_data()) {
 	$label = $datum->get_object->get_value() if $datum->get_object->get_name() =~ /label/i;
     }
-    print $sampleFH "!Sample_label_ch[$channel] = ", $label, "\n";    
+    print $sampleFH "!Sample_label_ch$channel = ", $label, "\n";    
 
     my $protocol_text = $self->get_protocol_text($label_ap);
     $protocol_text =~ s/\n//g; #one line
-    print $sampleFH "!Sample_label_protocol_ch[$channel] = ", $protocol_text, "\n";
+    print $sampleFH "!Sample_label_protocol_ch$channel = ", $protocol_text, "\n";
 }
 
 sub write_sample_hybridization {
