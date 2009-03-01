@@ -701,7 +701,7 @@ sub write_sample_normalization {
 	my $protocol_text = $self->get_protocol_text($ap);
 	$protocol_text =~ s/\n//g; #one line
 	print $sampleFH $protocol_text, " _end of protocol text_ ";
-	for my $datum ($ap->get_input_data()) {
+	for my $datum (@{$ap->get_input_data()}) {
 	    print $sampleFH "parameter: ", $datum->get_object->get_name(), " is ", $datum->get_object->get_value(), "   " if $datum->get_object->get_heading() =~ /Parameter/i;
 	}	
     }
