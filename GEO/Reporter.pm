@@ -14,7 +14,7 @@ BEGIN {
 use ModENCODE::Config;
 
 sub chado2series {
-    my ($self, $experiment, $experiment_id, $seriesFH) = @_;
+    my ($self, $reader, $experiment, $seriesFH, $uniquename) = @_;
     my $uniquename = $experiment->get_uniquename();
     print $seriesFH "^Series = ", $uniquename, "\n";
 
@@ -29,13 +29,14 @@ sub chado2series {
 #					    $property->get_value(), 
 #					    $property->get_rank(), 
 #					    $property->get_type());
-	print $seriesFH "!Series_title = modENCODE $experiment_id", substr($value, 0, 110-length($experiment_id)), "\n" if $name =~ /Investigation\s*Title/i;
-	print $seriesFH "!Series_summary = Project Goal:", $value, "\n" if $name =~ /Experiment\s*Description/i;
+	print $seriesFH "!Series_title = modENCODE $uniquename", substr($value, 0, 108-length($uniquename)), "\n" if $name =~ /Investigation\s*Title/i;
+	my $str = 'DATA USE POLICY: This dataset was generated under the auspices of the modENCODE (http://www.modencode.org) project, which has a specific data release policy stating that the data may be used, but not published, until 9 months from the date of public release. If any data used for the analysis are derived from unpublished data prior to the expiration of the nine-month protected period, then the resource users should obtain the consent of respective resource producers prior to submission of a manuscript.';	
+	print $seriesFH "!Series_summary = Project Goal:", $value, $str, "\n" if $name =~ /Experiment\s*Description/i;
 	print $seriesFH "!Series_pubmed_id = ", $value, "\n" if $name =~ /Pubmed_id/i;
     }
 
-    my $design = $self->get_design($experiment);
-    $self->write_series_overall_design($design, $seriesFH);
+#    my $design = $self->get_design($experiment);
+    $self->write_series_overall_design($reader, $experiment, $seriesFH);
     $self->write_series_type($experiment, $seriesFH);
     print $seriesFH "!Series_web_link = http://www.modencode.org\n";
     $self->write_contributors($experiment, $seriesFH);
@@ -154,25 +155,27 @@ sub write_contributors {
 	print $seriesFH "!Series_contributor = ", $str, "\n";
     }
 
-    my $person = $contact{$project};
-    my $str;
-    if ($person ne 'dcc') {
-	$str = $contact_info{$person}{'first'} . ",";    
-	$str .= $contact_info{$person}{'middle'} . "," if defined($contact_info{$person}{'middle'});
-	$str .= $contact_info{$person}{'last'};
-    } else {
-	$str .= $contact_info{$person}{'first'} . ",";
-	$str .= $contact_info{$person}{'last'}; 
-    }
-    print $seriesFH "!Series_contact_name = ", $str, "\n";
-    print $seriesFH "!Series_contact_email = ", $contact_info{$person}{'email'}, "\n";
-    print $seriesFH "!Series_contact_phone = ", $contact_info{$person}{'phone'}, "\n";
-    print $seriesFH "!Series_contact_institute = ", $contact_info{$person}{'institute'}, "\n";
-    print $seriesFH "!Series_contact_address = ", $contact_info{$person}{'address'}, "\n";
-    print $seriesFH "!Series_contact_city = ", $contact_info{$person}{'city'}, "\n";
-    print $seriesFH "!Series_contact_state = ", $contact_info{$person}{'state'}, "\n";
-    print $seriesFH "!Series_contact_country = ", $contact_info{$person}{'country'}, "\n";
-    print $seriesFH "!Series_contact_zip/postal-code = ", $contact_info{$person}{'zip code'}, "\n";
+    print $seriesFH "!Series_contributor = ", "DCC, modENCODE\n";
+
+#    my $person = $contact{$project};
+#    my $str;
+#    if ($person ne 'dcc') {
+#	$str = $contact_info{$person}{'first'} . ",";    
+#	$str .= $contact_info{$person}{'middle'} . "," if defined($contact_info{$person}{'middle'});
+#	$str .= $contact_info{$person}{'last'};
+#    } else {
+#	$str .= $contact_info{$person}{'first'} . ",";
+#	$str .= $contact_info{$person}{'last'}; 
+#    }
+#    print $seriesFH "!Series_contact_name = ", $str, "\n";
+#    print $seriesFH "!Series_contact_email = ", $contact_info{$person}{'email'}, "\n";
+#    print $seriesFH "!Series_contact_phone = ", $contact_info{$person}{'phone'}, "\n";
+#    print $seriesFH "!Series_contact_institute = ", $contact_info{$person}{'institute'}, "\n";
+#    print $seriesFH "!Series_contact_address = ", $contact_info{$person}{'address'}, "\n";
+#    print $seriesFH "!Series_contact_city = ", $contact_info{$person}{'city'}, "\n";
+#    print $seriesFH "!Series_contact_state = ", $contact_info{$person}{'state'}, "\n";
+#    print $seriesFH "!Series_contact_country = ", $contact_info{$person}{'country'}, "\n";
+#    print $seriesFH "!Series_contact_zip/postal-code = ", $contact_info{$person}{'zip code'}, "\n";
 }
 
 sub write_series_variable {
@@ -233,13 +236,46 @@ sub get_lab {
 }
 
 sub write_series_overall_design {
-    my ($self, $design, $seriesFH) = @_;
+    my ($self, $reader, $experiment, $seriesFH) = @_;
     my $str = '';
+    my $design = $self->get_design($experiment);
     foreach my $k (sort keys %$design) {
-	$str .= "Ontology:" . $design->{$k}->[1] . " accession:" . $design->{$k}->[2] if defined($design->{$k}->[1]);
-	$str .= " $design->{$k}->[0]";
-	$str .= ",";
+#	$str .= "Ontology:" . $design->{$k}->[1] . " accession:" . $design->{$k}->[2] if defined($design->{$k}->[1]);
+	$str .= $design->{$k}->[1] if defined($design->{$k}->[1]);
+	$str .= "DESIGN ONTOLOGY: MO::$design->{$k}->[0]";
+	$str .= ", ";
     }
+    $str .= 'EXPERIMENT TYPE: ' . $self->get_series_type($experiment) . ", ";
+    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+    my $denorm_slots = $reader->get_denormalized_protocol_slots();
+    $str .= 'BIOLOGICAL SOURCE: ' . $self->get_biological_source($denorm_slots, $ap_slots);
+    my $grps = $self->get_groups($ap_slots, $denorm_slots);
+    my $num_of_grps = keys %$grps;
+    $str .= "REPLICATES: " . $num_of_grps . ", ";
+    my $dye_swap_status_written = 0;
+    for (my $extraction=0; $extraction<$num_of_grps; $extraction++) {
+	my $num_of_array = keys %{$grps->{$extraction}};
+	$str .= "replicate $extraction applied to $num_of_array arrays, ";
+	for (my $array=0; $array<$num_of_array; $array++) {
+	    for (my $channel=0; $channel<scalar(@{$grps->{$extraction}->{$array}}); $channel++) {
+		my $row = $grps->{$extraction}->{$array}->[$channel];
+		if ($self->get_dye_swap_status($denorm_slots, $row, $channel, $ap_slots) eq 'dye swap') {
+		    my $sample_id = $self->get_sample_id($denorm_slots, $extraction, $array, $row, $ap_slots);
+		    $str .= "replicate $extraction array $array (sample id: $sample_id) is dye swap, ";
+		    $dye_swap_status_written = 1;
+		}
+	    }
+	}
+    }
+    if (not $dye_swap_status_written) {
+	$str .= 'NO dye swap,';
+    }
+    my $factors = $self->get_factor($experiment);
+    $str .= "EXPERIMENTAL FACTORS: ";
+    for my $rank (keys %$factors) {
+	$str .= $factors->{$rank}->[0];
+    }
+    
     print $seriesFH "!Series_overall_design = ", $str, "\n";     
 }
 
@@ -270,42 +306,51 @@ sub get_design {
     return \%design;
 }
 
-sub write_series_type {
-    my ($self, $experiment, $seriesFH) = @_;
+sub get_series_type {
+    my ($self, $experiment) = @_;
     my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
     my $design = $self->get_design($experiment);
-
-    my $written = 0;
-    print $seriesFH "!Series_type = ", "ChIP-chip\n" and $written = 1 if $ap_slots->{'immunoprecipitation'};
-    print $seriesFH "!Series_type = ", "FAIRE-chip\n" and $written = 1 if $ap_slots->{'faire'};
-    for my $dd (values %$design) {
-	for my $d (@$dd) {
-	    if ($d =~ /transcript/i) {
-		print $seriesFH "!Series_type = ", "transcription tiling array analysis\n"; 
-		$written = 1 and last;
-	    }
+    return "ChIP-chip" if  $ap_slots->{'immunoprecipitation'};
+    return "FAIRE-chip" if $ap_slots->{'faire'};
+    for my $d (values %$design) {
+	if ($d =~ /transcript/i) {
+	    last and return "transcription tiling array analysis";
 	}
     }
-    print $seriesFH "!Series_type = ", "tiling array analysis\n" unless $written;
+    return "tiling array analysis";
 }
 
-sub chado2sample {
-    my ($self, $reader, $experiment, $seriesFH, $sampleFH, $report_dir) = @_;
-    #get various biological protocol slots 
-    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
-    #get the more-than-applied-protocols matrix    
-    my $denorm_slots = $reader->get_denormalized_protocol_slots();
-#    my $denorm_slots = $reader->get_full_denormalized_protocol_slots();
-    
-    #sort out how many samples in this experiment. for GEO, one sample is defined by one array instance. 
-    #this is done by grouping hybridization protocols first by extraction and then by array.
+sub write_series_type {
+    my ($self, $experiment, $seriesFH) = @_;
+    print $seriesFH "!Series_type = ", $self->get_series_type($experiment), "\n";
+}
+
+#sub write_series_type {
+#    my ($self, $experiment, $seriesFH) = @_;
+#    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+#    my $design = $self->get_design($experiment);
+
+#    my $written = 0;
+#    print $seriesFH "!Series_type = ", "ChIP-chip\n" and $written = 1 if $ap_slots->{'immunoprecipitation'};
+#    print $seriesFH "!Series_type = ", "FAIRE-chip\n" and $written = 1 if $ap_slots->{'faire'};
+#    for my $dd (values %$design) {
+#	for my $d (@$dd) {
+#	    if ($d =~ /transcript/i) {
+#		print $seriesFH "!Series_type = ", "transcription tiling array analysis\n"; 
+#		$written = 1 and last;
+#	    }
+#	}
+#    }
+#    print $seriesFH "!Series_type = ", "tiling array analysis\n" unless $written;
+#}
+
+sub get_groups {
+    my ($self, $ap_slots, $denorm_slots) = @_;
+    #my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+    #my $denorm_slots = $reader->get_denormalized_protocol_slots();
     my ($nr_grp, $all_grp) = $self->group_applied_protocols($denorm_slots->[$ap_slots->{'extraction'}], 1);
-#    my ($nr_grp, $all_grp) = $self->group_applied_protocols_fast($denorm_slots->[$ap_slots->{'extraction'}], 1);
     my $all_grp_by_array = $self->group_applied_protocols_by_data($denorm_slots->[$ap_slots->{'hybridization'}],
 								  'input', 'name', '\s*array\s*');
-#    my $all_grp_by_array = $self->group_applied_protocols_by_data_fast($denorm_slots->[$ap_slots->{'hybridization'}],
-#								       'input', 'heading', 'ArrayDesign\s*REF');
-
     my %combine_grp = ();
     while (my ($row, $extract_grp) = each %$all_grp) {
 	my $array_grp = $all_grp_by_array->{$row};
@@ -323,7 +368,45 @@ sub chado2sample {
 	    $combine_grp{$extract_grp}{$array_grp} = [$row]; 
 	}
     }
+    return \%combine_grp;
+}
 
+sub chado2sample {
+    my ($self, $reader, $experiment, $seriesFH, $sampleFH, $report_dir) = @_;
+    #get various biological protocol slots 
+    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+    #get the more-than-applied-protocols matrix    
+    my $denorm_slots = $reader->get_denormalized_protocol_slots();
+#    my $denorm_slots = $reader->get_full_denormalized_protocol_slots();
+    
+    #sort out how many samples in this experiment. for GEO, one sample is defined by one array instance. 
+    #this is done by grouping hybridization protocols first by extraction and then by array.
+    my ($nr_grp, $all_grp) = $self->group_applied_protocols($denorm_slots->[$ap_slots->{'extraction'}], 1);
+#    my ($nr_grp, $all_grp) = $self->group_applied_protocols_fast($denorm_slots->[$ap_slots->{'extraction'}], 1);
+    my $all_grp_by_array = $self->group_applied_protocols_by_data($denorm_slots->[$ap_slots->{'hybridization'}],
+								  'input', 'name', '\s*array\s*');
+#    my $all_grp_by_array = $self->group_applied_protocols_by_data_fast($denorm_slots->[$ap_slots->{'hybridization'}],
+#								       'input', 'name', '\s*array\s*');
+
+#    my %combine_grp = ();
+#    while (my ($row, $extract_grp) = each %$all_grp) {
+#	my $array_grp = $all_grp_by_array->{$row};
+#	if (exists $combine_grp{$extract_grp}{$array_grp}) {
+#	    my $this_extract_ap = $denorm_slots->[$ap_slots->{'extraction'}]->[$row];
+#	    my $this_hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
+#	    my $ignore = 0;
+#	    for my $that_row (@{$combine_grp{$extract_grp}{$array_grp}}) {
+#		my $that_extract_ap = $denorm_slots->[$ap_slots->{'extraction'}]->[$that_row];
+#		my $that_hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$that_row];
+#		$ignore = 1 and last if ($this_extract_ap->equals($that_extract_ap) && $this_hyb_ap->equals($that_hyb_ap));
+#	    }
+#	    push @{$combine_grp{$extract_grp}{$array_grp}}, $row unless $ignore;
+#	} else {
+#	    $combine_grp{$extract_grp}{$array_grp} = [$row]; 
+#	}
+#    }
+
+    my %combine_grp = %{$self->get_groups($ap_slots, $denorm_slots)};
     my @raw_datafiles;
     my @normalize_datafiles;
     for my $extraction (keys %combine_grp) {
@@ -363,22 +446,37 @@ sub chado2sample {
     return (\@raw_datafiles, \@normalize_datafiles);
 }
 
+sub get_sample_id {
+    my ($self, $denorm_slots, $extraction, $array, $row, $ap_slots) = @_;
+    my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
+    my @hyb_names = map {$_->get_value()} @{_get_datum_by_info($hyb_ap, 'input', 'heading', 'Hybridization\s*Name')};
+    if (scalar(@hyb_names)) {
+	return $hyb_names[0];
+    } else {
+	return "extraction" . $extraction . "_" . "array" . $array;
+    }
+}
+
 sub write_series_sample {#improvement: generate more meaning sample title using factor, characteristics
     my ($self, $denorm_slots, $extraction, $array, $row, $ap_slots, $seriesFH, $sampleFH) = @_;
-    #use hybridization name if possible
-    my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
-    my $hyb_data = _get_datum_by_info($hyb_ap, 'input', 'heading', 'Hybridization\s*Name');    
-    if (scalar(@$hyb_data)) {
-	my @hyb_names = map {$_->get_object->get_value()} @$hyb_data;
-	print $seriesFH "!Series_sample_id = GSM for ", $hyb_names[0], "\n";
-	print $sampleFH "^Sample = GSM for ", $hyb_names[0], "\n";
-	print $sampleFH "!Sample_title = ", $hyb_names[0], "\n";
-    } else {#no hybridization name column, autogenerate
-	my $name = "extraction" . $extraction . "_" . "array" . $array;
-	print $seriesFH "!Series_sample_id = GSM for ", $name, "\n";
-	print $sampleFH "^Sample = GSM for ", $name, "\n";
-	print $sampleFH "!Sample_title = ", $name, "\n";	
-    }
+    my $name = $self->get_sample_id($denorm_slots, $extraction, $array, $row, $ap_slots);
+    print $seriesFH "!Series_sample_id = GSM for ", $name, "\n";
+    print $sampleFH "^Sample = GSM for ", $name, "\n";
+    print $sampleFH "!Sample_title = ", $name, "\n";
+#    #use hybridization name if possible
+#    my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
+#    my $hyb_data = _get_datum_by_info($hyb_ap, 'input', 'heading', 'Hybridization\s*Name');    
+#    if (scalar(@$hyb_data)) {
+#	my @hyb_names = map {$_->get_object->get_value()} @$hyb_data;
+#	print $seriesFH "!Series_sample_id = GSM for ", $hyb_names[0], "\n";
+#	print $sampleFH "^Sample = GSM for ", $hyb_names[0], "\n";
+#	print $sampleFH "!Sample_title = ", $hyb_names[0], "\n";
+#    } else {#no hybridization name column, autogenerate
+#	my $name = "extraction" . $extraction . "_" . "array" . $array;
+#	print $seriesFH "!Series_sample_id = GSM for ", $name, "\n";
+#	print $sampleFH "^Sample = GSM for ", $name, "\n";
+#	print $sampleFH "!Sample_title = ", $name, "\n";	
+#    }
 }
 
 sub write_sample_source {
@@ -408,6 +506,21 @@ sub write_sample_source {
     print $sampleFH "!Sample_organism_ch$channel = $organism_name[0]\n",    
 }
 
+sub get_dye_swap_status {
+    #this function only works for CHIP
+    my ($self, $denorm_slots, $row, $channel, $ap_slots) = @_;
+    return "NA" unless $ap_slots->{'immunoprecipitation'}; 
+    my $ip_ap = $denorm_slots->[$ap_slots->{'immunoprecipitation'}]->[$row];
+    my $antibodies = _get_datum_by_info($ip_ap, 'input', 'name', 'antibody');
+    my $antibody = $antibodies->[0];
+    my $label_ap = $denorm_slots->[$ap_slots->{'labeling'}]->[$row];
+    my $labels = _get_datum_by_info($label_ap, 'input', 'name', 'label');
+    my $label = $labels->[0];
+    if ($antibody->get_value() && lc($label->get_value()) =~ /cy3/) {
+	return 'dye swap';
+    }
+}
+
 sub write_sample_description {
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
     my $ip_ap = $denorm_slots->[$ap_slots->{'precipitation'}]->[$row];
@@ -427,8 +540,11 @@ sub write_sample_description {
 		    }
 		    $str .= ": $value; ";		
 		}
-		print $sampleFH $str, "\n";
 	    }
+	    else {
+		$str .= "channel ch$channel is control channel;"
+	    }		
+	    print $sampleFH $str, "\n";
 	}
     }
 }
@@ -464,6 +580,41 @@ sub ap_write_characteristics {
     }
 }
 
+sub get_biological_source {#cell line, strain, tissue,
+    my ($self, $denorm_slots, $ap_slots) = @_;
+    my $str = '';
+    #my $str = 'BIOLOGICAL SOURCE: ';
+    for (my $i=0; $i<=$ap_slots->{'extraction'}; $i++) {
+	my $ap = $denorm_slots->[$i]->[0];
+	for my $datum (@{$ap->get_input_data()}) {
+	    #my ($dname, $dheading, $dvalue) = ($datum->get_name(), $datum->get_heading(), $datum->get_value());
+	    for my $attr (@{$datum->get_attributes()}) {
+		my ($aname, $aheading, $avalue) = ($attr->get_name(), $attr->get_heading(), $attr->get_value());
+		#print $aname, ":", $aheading, ":", $avalue, "\n";
+		if (lc($aheading) =~ /official\s*name/) {
+		    #$str .= $dname . ":", $avalue . ", ";
+		    $str .= 'official name:' . "$avalue" . ", ";
+		}
+		if (lc($aname) =~ /strain/) {#this is internal name
+		    #$str .= $dname . ":", $avalue . ", ";
+		    $str .= 'strain official name:' . $avalue . ", ";
+		}		
+		if (lc($aheading) =~ /strain/) {#this is internal name
+		    #$str .= $dname . ":", $avalue . ", ";
+		    $str .= 'strain name from lab:' . $avalue . ", ";
+		}
+		if (lc($aheading) =~ /genotype/) {
+		    $str .= $aheading . ":" . $avalue . ", ";
+		}
+		if ((lc($aname) =~ /developmental\s*stage/) || (lc($aheading) =~ /developmental\s*stage/)) {
+		    $str .= 'developmental stage' . ":" . $avalue . ", ";
+		}
+	    }
+	}
+    }
+    return $str;
+}
+
 sub write_sample_growth {
     #all protocols before extractions
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
@@ -480,9 +631,20 @@ sub write_sample_extraction {
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
     my $extract_ap = $denorm_slots->[$ap_slots->{'extraction'}]->[$row];
     my $molecule;
-    for my $datum ($extract_ap->get_output_data()) {
-	my $type = $datum->get_object->get_type()->get_object->get_name();
-	$molecule = $type and last if ($type =~ /dna/i || $type =~ /rna/i);
+#    my %allowed_mol_type = ('total RNA', 'polyA RNA', 'cytoplasmic RNA', 'nuclear RNA', 
+#			    'genomic DNA', 'protein', 'other');
+    for my $datum (@{$extract_ap->get_output_data()}) {
+	my $type = $datum->get_type()->get_name();
+	$molecule='genomic DNA' and last if ($type =~ /dna/i);
+	if ($type =~ /rna/i) {
+	    $molecule = 'total RNA' and last if $type =~ /total/i;
+	    $molecule = 'polyA RNA' and last if $type =~ /polyA/i;
+	    $molecule = 'cytoplasmic RNA' and last if $type =~ /cyto/i;
+	    $molecule = 'nuclear RNA' and last if $type =~ /nuc/i;
+	    $molecule = 'total RNA' and last;
+	}
+	$molecule='protein' and last if ($type =~ /protein/i);
+	$molecule='other' and last;
     }
     croak("is the type of molecule extracted dna, total_rna, nucleic rna, ...?") unless $molecule;
     print $sampleFH "!Sample_molecule_ch$channel = ", $molecule, "\n";
@@ -612,19 +774,35 @@ sub _get_full_protocol_text {
     return $txt;    
 }
 
-sub write_platform {
-    my ($self, $denorm_slots, $row, $ap_slots, $sampleFH) = @_;
+sub get_array {
+    my ($self, $denorm_slots, $row, $ap_slots) = @_;
     my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
     my $array = _get_datum_by_info($hyb_ap, 'input', 'heading', 'ArrayDesign\s*REF');
     if (scalar(@$array) == 0) {
-	$array = _get_datum_by_info($hyb_ap, 'input', 'name', 'array');
+        $array = _get_datum_by_info($hyb_ap, 'input', 'name', 'array');
     }
     my $gpl;
     if (scalar(@$array)) {
 	my $attr = _get_attr_by_info($array->[0], 'heading', '\s*adf\s*');
-	
 	$gpl = $1 if $attr->[0]->get_value() =~ /(GPL\d*)\s*$/;
     }
+    return $gpl;
+}
+
+sub write_platform {
+    my ($self, $denorm_slots, $row, $ap_slots, $sampleFH) = @_;
+#    my $hyb_ap = $denorm_slots->[$ap_slots->{'hybridization'}]->[$row];
+#    my $array = _get_datum_by_info($hyb_ap, 'input', 'heading', 'ArrayDesign\s*REF');
+#    if (scalar(@$array) == 0) {
+#	$array = _get_datum_by_info($hyb_ap, 'input', 'name', 'array');
+#    }
+#    my $gpl;
+#    if (scalar(@$array)) {
+#	my $attr = _get_attr_by_info($array->[0], 'heading', '\s*adf\s*');
+#	
+#	$gpl = $1 if $attr->[0]->get_value() =~ /(GPL\d*)\s*$/;
+#    }
+    my $gpl = $self->get_array($denorm_slots, $row, $ap_slots);
     print $sampleFH "!Sample_platform_id = ", $gpl, "\n";
 }
 
@@ -632,24 +810,28 @@ sub write_normalized_data {
     #normalized data is in wiggle_data
     #supplement a file, don't need liftover/pulldown, thank god!
     my ($self, $denorm_slots, $row, $ap_slots, $sampleFH, $report_dir) = @_;
-#    print "row:", $row;
-    my $normalize_ap = $denorm_slots->[$ap_slots->{'normalization'}]->[$row];
-    my @normalize_datafiles;
-#    print " output data: ", scalar($normalize_ap->get_output_data());
-    for my $datum ($normalize_ap->get_output_data()) {
-#	print " wiggle data: ", scalar($datum->get_object->get_wiggle_datas()), "\n";
-	for my $wiggle_data_cache ($datum->get_object->get_wiggle_datas()) {
-	    my $wiggle_data = $wiggle_data_cache->get_object;
-	    my $datafile = $report_dir . $wiggle_data->get_name();
-	    my $dataFH;
-	    open $dataFH, ">", $datafile || die "can not open $datafile to write out data. $!\n";
+    my $normalization_ap = $denorm_slots->[$ap_slots->{'normalization'}]->[$row];
+    my @normalization_datafiles;
+    for my $datum (@{$normalization_ap->get_output_data()}) {
+# I have decided not to use wiggle_datas, since it is easy
+#but I keep the code here for using wiggle_datas just in case someday the submission data dissappear.
+	my $path = $datum->get_value();
+	my @pieces = split("/", $path);
+	my $normalization_data = $pieces[-1];
+	print $sampleFH "!Sample_supplementary_file = ", $normalization_data, "\n";
+#	for my $wiggle_data (@{$datum->get_wiggle_datas()}) {
+#	    my $datafile = $report_dir . $wiggle_data->get_name();
+#	    open my $dataFH, ">", $datafile || die "can not open $datafile to write out data. $!\n";
 #	    print $dataFH $wiggle_data->get_data();
-	    close $dataFH;
-	    print $sampleFH "!Sample_supplementary_file = ", $datafile, "\n";
-	    push @normalize_datafiles, $datafile;
-	}
+#	    close $dataFH;
+#	    print $sampleFH "!Sample_supplementary_file = ", $datafile, "\n";
+#	    push @normalize_datafiles, $datafile;
+#	}
+	push @normalization_datafiles, $path; 
+
+
     }
-    return @normalize_datafiles;
+    return @normalization_datafiles;
 }
 
 sub write_raw_data {
@@ -765,7 +947,10 @@ sub get_slotnum_extract {#this could go into a subclass of experiment
     my $type = "extract";
     my @aps = $self->get_slotnum_by_protocol_property($experiment, 1, 'heading', 'Protocol\s*Type', $type);    
     if (scalar(@aps) > 1) {
-	croak("you confused me with more than 1 extraction protocols.");
+	# we even have submissions with multiple extraction steps
+	#croak("you confused me with more than 1 extraction protocols.");
+	warn("this experiment has more than one extraction protocols.");
+	return $aps[0];
     } elsif (scalar(@aps) == 0) {
 	croak("every experiment must have a protocol with type of extraction. maybe you forgot the extraction protocol in SDRF?");
     } else {
