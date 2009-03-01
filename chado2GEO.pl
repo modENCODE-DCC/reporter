@@ -28,7 +28,7 @@ ModENCODE::Cache::init();
 #my $report_dir = $ARGV[1];
 my $report_dir = $ARGV[0];
 my $dbname = $ARGV[1];
-my $uniquename = $ARGV[2];
+my $uniquename = 'modencode_' . $ARGV[2];
 
 my $experiment_id = '1';
 #my $report_dir = '/home/zheng/data';
@@ -112,14 +112,21 @@ for my $datafile (@datafiles) {
     my $path = $report_dir . $datafile;
     my $dir = dirname($path);
     my $file = basename($path);
+    my ($unzipped_file, $unzipped) = unzipp($file);
     move($tarfile, $dir);
     chdir $dir;
-    my @tar = ('tar', 'rf', $tarfile, $file);
-    system(@tar) == 0 || die "can not make tar: $?";
+    if ($unzipped) {
+	@tar = ('tar', 'rf', $tarfile, $unzipped_file);
+	system(@tar) == 0 || die "can not make tar: $?";
+	system("rm $unzipped_file") == 0 || die "can not remove unzipped file: $?";
+    } else {
+	@tar = ('tar', 'rf', $tarfile, $file);
+	system(@tar) == 0 || die "can not make tar: $?";
+    }
 }
 move($tarfile, $report_dir);
 chdir $report_dir;
-#system('gzip', $tarfile) == 0 || die "can not zip the tar: $?";
+system('gzip', $tarfile) == 0 || die "can not zip the tar: $?";
 
 #submit to GEO
 if ($submitnow) {
@@ -163,5 +170,34 @@ sub unzipp {
     if ($suffix eq '.gz') {
     }
     if ($suffix eq '.tar') {
+    }
+}
+
+sub unzipp {
+    my $path = shift; #this is already a basename
+    #always keep the original file
+    my ($file, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
+    my $unzipped = 0;
+    if ($suffix eq '.tgz') {
+	$unzipped = 1;
+    }
+    if ($suffix eq '.bz2') {
+	$unzipped = 1;
+	system("bzip2 -dk $path")	
+    }
+    if ($suffix eq '.zip' || $suffix eq '.ZIP' || $suffix eq '.Z') {
+	$unzipped = 1;
+    }
+    if ($suffix eq '.gz') {
+	$unzipped = 1;
+	#deal with .tar.gz here
+    }
+    if ($suffix eq '.tar') {
+	$unzipped = 1;
+    }
+    if ($unzipped) {
+	return ($file, $unzipped);
+    } else {
+	return ($path, $unzipped);
     }
 }
