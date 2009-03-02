@@ -4,6 +4,7 @@ use strict;
 use Carp;
 use Class::Std;
 use Data::Dumper;
+use File::Basename;
 
 my $validator_path;
 BEGIN {
@@ -246,7 +247,7 @@ sub write_series_overall_design {
 	$str .= ", ";
     }
     $str .= 'EXPERIMENT TYPE: ' . $self->get_series_type($experiment) . ", ";
-    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment, 'group');
     my $denorm_slots = $reader->get_denormalized_protocol_slots();
     $str .= 'BIOLOGICAL SOURCE: ' . $self->get_biological_source($denorm_slots, $ap_slots);
     my $grps = $self->get_groups($ap_slots, $denorm_slots);
@@ -308,7 +309,7 @@ sub get_design {
 
 sub get_series_type {
     my ($self, $experiment) = @_;
-    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment, 'group');
     my $design = $self->get_design($experiment);
     return "ChIP-chip" if  $ap_slots->{'immunoprecipitation'};
     return "FAIRE-chip" if $ap_slots->{'faire'};
@@ -374,7 +375,7 @@ sub get_groups {
 sub chado2sample {
     my ($self, $reader, $experiment, $seriesFH, $sampleFH, $report_dir) = @_;
     #get various biological protocol slots 
-    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment);
+    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment, 'group');
     #get the more-than-applied-protocols matrix    
     my $denorm_slots = $reader->get_denormalized_protocol_slots();
 #    my $denorm_slots = $reader->get_full_denormalized_protocol_slots();
@@ -407,8 +408,11 @@ sub chado2sample {
 #    }
 
     my %combine_grp = %{$self->get_groups($ap_slots, $denorm_slots)};
+    my $most_complex_extraction_ap_slot = $ap_slots->{'extraction'};
     my @raw_datafiles;
     my @normalize_datafiles;
+
+    my $ap_slots = $self->get_slotnum_for_geo_sample($experiment, 'protocol');
     for my $extraction (keys %combine_grp) {
 	for my $array (keys %{$combine_grp{$extraction}}) {
 	    #first write the !Series_sample_id line in Series and ^Sample, !Sample_title lines
@@ -425,7 +429,7 @@ sub chado2sample {
 		$self->write_sample_growth($denorm_slots, $combine_grp{$extraction}{$array}->[$i],
 					   $i, $ap_slots, $sampleFH);
 		$self->write_sample_extraction($denorm_slots, $combine_grp{$extraction}{$array}->[$i],
-					       $i, $ap_slots, $sampleFH);
+					       $i, $ap_slots, $sampleFH,  $most_complex_extraction_ap_slot);
 		$self->write_sample_label($denorm_slots, $combine_grp{$extraction}{$array}->[$i],
 					  $i, $ap_slots, $sampleFH);	
 		push @raw_datafiles, $self->write_raw_data($denorm_slots, $combine_grp{$extraction}{$array}->[$i],
@@ -628,8 +632,8 @@ sub write_sample_growth {
 
 sub write_sample_extraction {
     #molecule and extraction protocols
-    my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
-    my $extract_ap = $denorm_slots->[$ap_slots->{'extraction'}]->[$row];
+    my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH, $most_complex_extraction_ap_slot) = @_;
+    my $extract_ap = $denorm_slots->[$most_complex_extraction_ap_slot]->[$row];
     my $molecule;
 #    my %allowed_mol_type = ('total RNA', 'polyA RNA', 'cytoplasmic RNA', 'nuclear RNA', 
 #			    'genomic DNA', 'protein', 'other');
@@ -811,14 +815,18 @@ sub write_normalized_data {
     #supplement a file, don't need liftover/pulldown, thank god!
     my ($self, $denorm_slots, $row, $ap_slots, $sampleFH, $report_dir) = @_;
     my $normalization_ap = $denorm_slots->[$ap_slots->{'normalization'}]->[$row];
+    my @suffixs = ('.bz2', '.z', '.gz', '.zip', '.rar');
     my @normalization_datafiles;
     for my $datum (@{$normalization_ap->get_output_data()}) {
 # I have decided not to use wiggle_datas, since it is easy
 #but I keep the code here for using wiggle_datas just in case someday the submission data dissappear.
 	my $path = $datum->get_value();
-	my @pieces = split("/", $path);
-	my $normalization_data = $pieces[-1];
-	print $sampleFH "!Sample_supplementary_file = ", $normalization_data, "\n";
+	my ($file, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
+	if (scalar grep {lc($suffix) eq $_} @suffixs) {
+	    print $sampleFH "!Sample_supplementary_file = ", $file, "\n";
+	} else {
+	    print $sampleFH "!Sample_supplementary_file = ", $file . $suffix, "\n";
+	}
 #	for my $wiggle_data (@{$datum->get_wiggle_datas()}) {
 #	    my $datafile = $report_dir . $wiggle_data->get_name();
 #	    open my $dataFH, ">", $datafile || die "can not open $datafile to write out data. $!\n";
@@ -837,12 +845,19 @@ sub write_normalized_data {
 sub write_raw_data {
     my ($self, $denorm_slots, $row, $channel, $ap_slots, $sampleFH) = @_;
     my $ap = $denorm_slots->[$ap_slots->{'raw'}]->[$row];
+    my @suffixs = ('.bz2', '.z', '.gz', '.zip', '.rar');
     my @raw_datafiles;
     for my $datum_cache ($ap->get_output_data()) {
 	my $datum = $datum_cache->get_object;
 	if (($datum->get_heading() =~ /Array\s*Data\s*File/i) || ($datum->get_heading() =~ /Result\s*File/i)) {
-	    print $sampleFH "!Sample_supplementary_file = ", $datum->get_value(), "\n";
-	    push @raw_datafiles, $datum->get_value();
+	    my $path = $datum->get_value();
+	    my ($file, $dir, $suffix) = fileparse($path, qr/\.[^.]*/);
+	    if (scalar grep {lc($suffix) eq $_} @suffixs) {
+		print $sampleFH "!Sample_supplementary_file = ", $file, "\n";
+	    } else {
+		print $sampleFH "!Sample_supplementary_file = ", $file . $suffix, "\n";
+	    }
+	    push @raw_datafiles, $path;
 	}
     }
     return @raw_datafiles;
@@ -912,12 +927,12 @@ sub _group {
 }
 
 sub get_slotnum_for_geo_sample {
-    my ($self, $experiment) = @_;
+    my ($self, $experiment, $option) = @_;
     my %ap_slots;
     #find hybridization or sequencing protocol
     $ap_slots{'hybridization'} = $self->get_slotnum_hyb($experiment);
     #find extraction protocol to determine the samples in this experiment
-    $ap_slots{'extraction'} = $self->get_slotnum_extract($experiment);
+    $ap_slots{'extraction'} = $self->get_slotnum_extract($experiment, $option);
     #find other protocols
     $ap_slots{'labeling'} = $self->get_slotnum_label($experiment);
     $ap_slots{'scanning'} = $self->get_slotnum_scan($experiment);
@@ -943,14 +958,19 @@ sub get_slotnum_hyb {#this could go into a subclass of experiment
 }
 
 sub get_slotnum_extract {#this could go into a subclass of experiment
-    my ($self, $experiment) = @_;
+    my ($self, $experiment, $option) = @_;
     my $type = "extract";
-    my @aps = $self->get_slotnum_by_protocol_property($experiment, 1, 'heading', 'Protocol\s*Type', $type);    
+    my @aps = $self->get_slotnum_by_protocol_property($experiment, 1, 'heading', 'Protocol\s*Type', $type);
     if (scalar(@aps) > 1) {
-	# we even have submissions with multiple extraction steps
-	#croak("you confused me with more than 1 extraction protocols.");
-	warn("this experiment has more than one extraction protocols.");
-	return $aps[0];
+        #croak("you confused me with more than 1 extraction protocols.");
+        # we even have submissions with multiple extraction steps
+        #croak("you confused me with more than 1 extraction protocols.");
+#       warn("this experiment has more than one extraction protocols.");
+        if ($option eq 'group') {#report this one to group arrays
+            return $self->check_complexity($experiment, \@aps);
+        } elsif ($option eq 'protocol') {#report this one to write out protocol
+            return $aps[0];
+        }
     } elsif (scalar(@aps) == 0) {
 	croak("every experiment must have a protocol with type of extraction. maybe you forgot the extraction protocol in SDRF?");
     } else {
@@ -1210,5 +1230,6 @@ sub _get_attr_value {#this could go to attibute.pm
     return $attr->get_value() if (($field eq 'heading') && ($attr->get_heading() =~ /$fieldtext/i));
     return undef;
 }
+
 
 1;
