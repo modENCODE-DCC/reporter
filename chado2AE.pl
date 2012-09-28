@@ -17,12 +17,12 @@ my $report_dir = '/home/zheng/data';
 #my $dbname = 'modencode_chado';
 #my $host = 'heartbroken.lbl.gov';
 #my $username = 'db_public';
-#my $passwd = 'ir84#4nm';
+#my $passwd = 'pw';
 
 my $dbname = 'modencode';
 my $host = 'localhost';
 my $username = 'zheng';
-my $passwd = 'weigaocn';
+my $passwd = 'pw';
 
 
 my $reader = new ModENCODE::Parser::Chado({

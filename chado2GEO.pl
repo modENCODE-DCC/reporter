@@ -37,14 +37,14 @@ my $experiment_id = '1';
 my $newsubmission = 1;
 #username/password for GEO submission page
 my $username = 'zheng';
-my $passwd = 'weigaocn';
+my $passwd = 'pw';
 #test but not submit to GEO
 my $submitnow = 0;
 
 #my $dbname = 'modencode_chado';
 #my $host = 'heartbroken.lbl.gov';
 #my $username = 'db_public';
-#my $passwd = 'ir84#4nm';
+#my $passwd = 'pw';
 
 #my $dbname = 'modencode2';
 #my $dbname = 'NA_MES4FLAG_EEMB';
@@ -53,7 +53,7 @@ my $submitnow = 0;
 #my $dbname = 'Kc_timing';
 my $host = 'localhost';
 my $dbusername = 'zheng';
-my $dbpasswd = 'weigaocn';
+my $dbpasswd = 'pw';
 
 
 
